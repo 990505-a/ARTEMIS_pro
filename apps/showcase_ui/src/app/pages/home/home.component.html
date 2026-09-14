@@ -626,6 +626,28 @@
               <input type="checkbox" [checked]="editApplyToNodes()" (change)="editApplyToNodes.set($any($event.target).checked)" />
               <span>{{ 'Also switch internal helper nodes (hopper / object detector / background compression)' | t }}</span>
             </label>
+            <div class="model-edit-row">
+              <label class="model-edit-label model-edit-grow">
+                <span>{{ 'API Key (optional)' | t }}</span>
+                <div class="model-edit-key-wrap">
+                  <input [type]="showEditApiKey() ? 'text' : 'password'" class="model-edit-input" spellcheck="false"
+                    autocomplete="off" [placeholder]="'Leave blank to keep the current key' | t"
+                    [value]="editApiKey()" (input)="editApiKey.set($any($event.target).value)" />
+                  <button type="button" class="btn-icon-eye" (click)="showEditApiKey.set(!showEditApiKey())"
+                    [title]="showEditApiKey() ? ('Mask Key' | t) : ('Show Plaintext' | t)">
+                    <span class="material-symbols-outlined">{{ showEditApiKey() ? 'visibility_off' : 'visibility' }}</span>
+                  </button>
+                </div>
+              </label>
+              @if (editProvider() === 'openai') {
+              <label class="model-edit-label model-edit-grow">
+                <span>{{ 'Base URL (optional, OpenAI-compatible)' | t }}</span>
+                <input type="text" class="model-edit-input" spellcheck="false" autocomplete="off"
+                  placeholder="https://api.example.com/v1" [value]="editBaseUrl()"
+                  (input)="editBaseUrl.set($any($event.target).value)" />
+              </label>
+              }
+            </div>
             <div class="model-edit-actions">
               <button type="button" class="btn-file-action" (click)="cancelEditModelConfig()">
                 <span class="material-symbols-outlined">close</span>

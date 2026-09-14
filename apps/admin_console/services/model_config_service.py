@@ -40,6 +40,52 @@ class ModelConfigUpdateError(ValueError):
     """Raised when a model-config update cannot be applied safely."""
 
 
+def set_openai_base_url(base_url: str) -> None:
+    """Persist OPENAI_BASE_URL for the OpenAI-compatible endpoint.
+
+    Applies the value to the running process (settings object + os.environ)
+    and upserts the line in the .env file. An empty string clears the
+    override so the provider default endpoint is used again.
+    """
+    from urllib.parse import urlsplit
+
+    from artemis.config import settings
+    from artemis.config.constants import ENV_OPENAI_BASE_URL
+    from artemis.config.paths import get_env_file
+
+    value = base_url.strip()
+    if value and urlsplit(value).scheme not in ("http", "https"):
+        raise ModelConfigUpdateError("Base URL must start with http:// or https://")
+
+    if value:
+        os.environ[ENV_OPENAI_BASE_URL] = value
+        if hasattr(settings, "OPENAI_BASE_URL"):
+            try:
+                settings.OPENAI_BASE_URL = value  # type: ignore[misc]
+            except Exception:  # noqa: BLE001 - frozen settings: env var still applies
+                pass
+    else:
+        os.environ.pop(ENV_OPENAI_BASE_URL, None)
+
+    env_file = get_env_file()
+    env_file.parent.mkdir(parents=True, exist_ok=True)
+    lines = env_file.read_text(encoding="utf-8").splitlines() if env_file.exists() else []
+    new_lines = [ln for ln in lines if not ln.startswith(f"{ENV_OPENAI_BASE_URL}=")]
+    if value:
+        new_lines.append(f"{ENV_OPENAI_BASE_URL}={value}")
+    env_file.write_text("\n".join(new_lines) + "\n", encoding="utf-8", newline="\n")
+
+
+def clear_model_client_cache() -> None:
+    """Drop cached LLM clients so key/base-url changes take effect at once."""
+    try:
+        from artemis.llm.router import ModelFactory
+
+        ModelFactory._cache.clear()
+    except Exception:  # noqa: BLE001 - cache clear is best-effort
+        logger.debug("Could not clear ModelFactory cache", exc_info=True)
+
+
 def _validate(provider: str, model: str) -> None:
     if provider not in ALLOWED_PROVIDERS:
         raise ModelConfigUpdateError(

@@ -136,6 +136,9 @@ export class HomeComponent implements OnInit, OnDestroy {
   public editingModelConfig = signal<boolean>(false);
   public editProvider = signal<string>('openai');
   public editModel = signal<string>('');
+  public editApiKey = signal<string>('');
+  public editBaseUrl = signal<string>('');
+  public showEditApiKey = signal<boolean>(false);
   public editApplyToNodes = signal<boolean>(true);
   public isSavingModelConfig = signal<boolean>(false);
   public modelConfigMessage = signal<string | null>(null);
@@ -753,6 +756,9 @@ export class HomeComponent implements OnInit, OnDestroy {
     const current = this.modelConfigEnv()?.default_model;
     this.editProvider.set(current?.provider || 'openai');
     this.editModel.set(current?.model || '');
+    this.editApiKey.set('');
+    this.editBaseUrl.set('');
+    this.showEditApiKey.set(false);
     this.modelConfigMessage.set(null);
     this.modelConfigError.set(null);
     this.editingModelConfig.set(true);
@@ -780,6 +786,8 @@ export class HomeComponent implements OnInit, OnDestroy {
         provider,
         model,
         apply_to_nodes: this.editApplyToNodes(),
+        api_key: this.editApiKey().trim(),
+        base_url: this.editBaseUrl().trim(),
       })
       .subscribe({
         next: (res) => {

@@ -147,6 +147,9 @@ export const ZH_TRANSLATIONS: Record<string, string> = {
   'Also switch internal helper nodes (hopper / object detector / background compression)':
     '同时切换内部辅助节点（应用定位 / 目标检测 / 后台压缩）',
   'Cancel': '取消',
+  'API Key (optional)': 'API Key（可选）',
+  'Leave blank to keep the current key': '留空则保持现有 Key 不变',
+  'Base URL (optional, OpenAI-compatible)': 'Base URL（可选，OpenAI 兼容端点）',
   'Save Model': '保存模型',
   'Saving...': '保存中...',
   'Available': '个可用',

@@ -598,6 +598,8 @@ export interface UpdateModelConfigPayload {
   provider: string;
   model: string;
   apply_to_nodes?: boolean;
+  api_key?: string;
+  base_url?: string;
 }
 
 export interface UpdateModelConfigResult {

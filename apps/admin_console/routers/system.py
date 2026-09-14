@@ -505,6 +505,17 @@ class UpdateModelConfigRequest(BaseModel):
             "background compression models so the whole stack runs on the choice"
         ),
     )
+    api_key: str = Field(
+        default="",
+        description="Optional API key for the provider; blank keeps the current one",
+    )
+    base_url: str = Field(
+        default="",
+        description=(
+            "Optional OpenAI-compatible base URL (openai provider only); "
+            "blank keeps the current endpoint"
+        ),
+    )
 
 
 @router.put("/model-config")
@@ -513,31 +524,67 @@ async def update_model_config(request: Request, payload: UpdateModelConfigReques
     _require_local_admin_request(request)
 
     from artemis.config.paths import get_config_path
+    from artemis.config import settings
 
-    from ..services.model_config_service import ModelConfigUpdateError, update_model_config
+    from ..services.model_config_service import (
+        ModelConfigUpdateError,
+        clear_model_client_cache,
+        set_openai_base_url,
+        update_model_config,
+    )
 
     try:
         config_path = get_config_path("artemis.jsonc")
     except Exception as exc:  # noqa: BLE001 - surface as a 4xx-style failure
         raise HTTPException(status_code=500, detail=f"Could not resolve config path: {exc}")
 
+    # Validate everything BEFORE touching any file, so a rejected request
+    # cannot leave a half-applied switch behind.
+    api_key = payload.api_key.strip()
+    base_url = payload.base_url.strip()
+    provider = payload.provider.strip()
+    if base_url and provider.lower() != "openai":
+        raise HTTPException(
+            status_code=400,
+            detail="base_url only applies to the openai provider (OpenAI-compatible endpoint).",
+        )
+
     try:
         result = update_model_config(
             config_path,
-            payload.provider.strip(),
+            provider,
             payload.model.strip(),
             apply_to_nodes=payload.apply_to_nodes,
         )
     except ModelConfigUpdateError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
+    extras: list[str] = []
+    if api_key:
+        settings.set_api_key(provider, api_key, persist_to_env=True)
+        extras.append("API key")
+
+    if base_url:
+        try:
+            set_openai_base_url(base_url)
+        except ModelConfigUpdateError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        extras.append("base URL")
+
+    if extras:
+        clear_model_client_cache()
+
+    message = (
+        f"Active model set to {result['provider']}/{result['model']}. "
+        "New tasks pick it up immediately; the inspector above refreshes "
+        "within ~10 seconds."
+    )
+    if extras:
+        message += f" Updated: {', '.join(extras)} (written to .env)."
+
     return {
         "status": "success",
-        "message": (
-            f"Active model set to {result['provider']}/{result['model']}. "
-            "New tasks pick it up immediately; the inspector above refreshes "
-            "within ~10 seconds."
-        ),
+        "message": message,
         "provider": result["provider"],
         "model": result["model"],
         "nodes_updated": result["nodes_updated"],

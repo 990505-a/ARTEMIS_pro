@@ -5247,3 +5247,38 @@ $text-light: #94a3b8;
     margin: 0;
   }
 }
+
+.model-edit-key-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  .model-edit-input {
+    width: 100%;
+    padding-right: 38px;
+  }
+
+  .btn-icon-eye {
+    position: absolute;
+    right: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: #64748b;
+    border-radius: 6px;
+
+    &:hover {
+      background: rgba(241, 245, 249, 0.9);
+      color: #0f172a;
+    }
+
+    .material-symbols-outlined {
+      font-size: 18px;
+    }
+  }
+}

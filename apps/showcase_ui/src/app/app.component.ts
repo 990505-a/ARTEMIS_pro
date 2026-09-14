@@ -17,12 +17,10 @@
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { NavSwitcherComponent } from './components/nav-switcher/nav-switcher.component';
-import { TranslatePipe } from './core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-root',
-  imports: [
-    TranslatePipe,RouterOutlet, NavSwitcherComponent],
+  imports: [RouterOutlet, NavSwitcherComponent],
   templateUrl: './app.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './app.component.scss'
