@@ -576,6 +576,36 @@ export class SystemService {
       })
     );
   }
+
+  /**
+   * Edit the active default model in artemis.jsonc; refreshes the inspector on success
+   */
+  public updateModelConfig(payload: UpdateModelConfigPayload): Observable<UpdateModelConfigResult> {
+    return this.http.put<UpdateModelConfigResult>('/api/system/model-config', payload).pipe(
+      tap({
+        next: () => {
+          this.fetchModelConfigEnv().subscribe();
+        },
+        error: (err) => {
+          console.error('Failed to update model config:', err);
+        }
+      })
+    );
+  }
+}
+
+export interface UpdateModelConfigPayload {
+  provider: string;
+  model: string;
+  apply_to_nodes?: boolean;
+}
+
+export interface UpdateModelConfigResult {
+  status: string;
+  message: string;
+  provider: string;
+  model: string;
+  nodes_updated: string[];
 }
 
 export interface ModelConfigEnvResponse {

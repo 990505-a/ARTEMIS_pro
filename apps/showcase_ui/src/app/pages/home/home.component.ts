@@ -131,6 +131,16 @@ export class HomeComponent implements OnInit, OnDestroy {
   // Model & Environment configuration from backend
   public modelConfigEnv = computed(() => this.systemService.modelConfigEnv());
 
+  // Inline editing of the active model configuration (artemis.jsonc)
+  public readonly modelProviders = ['google', 'openai', 'anthropic', 'openrouter', 'vertexai', 'xai'] as const;
+  public editingModelConfig = signal<boolean>(false);
+  public editProvider = signal<string>('openai');
+  public editModel = signal<string>('');
+  public editApplyToNodes = signal<boolean>(true);
+  public isSavingModelConfig = signal<boolean>(false);
+  public modelConfigMessage = signal<string | null>(null);
+  public modelConfigError = signal<string | null>(null);
+
   // Google Gemini API Key State
   public geminiKeyInput = signal<string>('');
   public showGeminiKey = signal<boolean>(false);
@@ -737,6 +747,52 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.geminiSaveError.set(err?.error?.detail || err?.message || 'Gemini API key test failed.');
       }
     });
+  }
+
+  public startEditModelConfig(): void {
+    const current = this.modelConfigEnv()?.default_model;
+    this.editProvider.set(current?.provider || 'openai');
+    this.editModel.set(current?.model || '');
+    this.modelConfigMessage.set(null);
+    this.modelConfigError.set(null);
+    this.editingModelConfig.set(true);
+  }
+
+  public cancelEditModelConfig(): void {
+    this.editingModelConfig.set(false);
+    this.modelConfigMessage.set(null);
+    this.modelConfigError.set(null);
+  }
+
+  public saveModelConfig(): void {
+    const provider = this.editProvider().trim();
+    const model = this.editModel().trim();
+    if (!provider || !model) {
+      this.modelConfigError.set('Provider and model id are required.');
+      return;
+    }
+    this.isSavingModelConfig.set(true);
+    this.modelConfigMessage.set(null);
+    this.modelConfigError.set(null);
+
+    this.systemService
+      .updateModelConfig({
+        provider,
+        model,
+        apply_to_nodes: this.editApplyToNodes(),
+      })
+      .subscribe({
+        next: (res) => {
+          this.isSavingModelConfig.set(false);
+          this.editingModelConfig.set(false);
+          this.modelConfigMessage.set(res?.message || 'Model configuration updated.');
+          setTimeout(() => this.modelConfigMessage.set(null), 8000);
+        },
+        error: (err) => {
+          this.isSavingModelConfig.set(false);
+          this.modelConfigError.set(err?.error?.detail || err?.message || 'Failed to update model config.');
+        },
+      });
   }
 
   public testOcrKey(): void {

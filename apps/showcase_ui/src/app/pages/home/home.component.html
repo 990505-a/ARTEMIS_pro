@@ -555,6 +555,14 @@
             </div>
           </div>
           <div class="inspector-header-actions">
+            @if (!editingModelConfig()) {
+            <button type="button" class="btn-file-action" [title]="'Edit the active model in artemis.jsonc' | t"
+              (click)="startEditModelConfig()"
+            >
+              <span class="material-symbols-outlined">edit</span>
+              <span>{{ 'Edit Model' | t }}</span>
+            </button>
+            }
             <button type="button" class="btn-file-action" [title]="'Copy file path' | t"
               (click)="copyToClipboard(modelConfigEnv()?.config_path || 'config/artemis.jsonc', 'config_path_btn')"
             >
@@ -571,7 +579,7 @@
             </button>
           </div>
           </div>
-          
+
           <!-- Model Summary Row -->
           <div class="inspector-summary-row">
             <div class="summary-metric">
@@ -583,7 +591,7 @@
                 <span class="model-name">{{ modelConfigEnv()?.default_model?.model || 'gemini-3.8-flash' }}</span>
               </div>
             </div>
-          
+
             @if (modelConfigEnv()?.default_model?.fallback) {
             <div class="summary-metric">
               <span class="metric-label">{{ 'Fallback Model' | t }}</span>
@@ -593,8 +601,57 @@
               </div>
             </div>
             }
-          
+
           </div>
+
+          <!-- Inline Model Editor -->
+          @if (editingModelConfig()) {
+          <div class="model-edit-box">
+            <div class="model-edit-row">
+              <label class="model-edit-label">
+                <span>{{ 'Provider' | t }}</span>
+                <select class="model-edit-select" [value]="editProvider()" (change)="editProvider.set($any($event.target).value)">
+                  @for (p of modelProviders; track p) {
+                    <option [value]="p" [selected]="p === editProvider()">{{ p }}</option>
+                  }
+                </select>
+              </label>
+              <label class="model-edit-label model-edit-grow">
+                <span>{{ 'Model ID' | t }}</span>
+                <input type="text" class="model-edit-input" spellcheck="false" autocomplete="off"
+                  placeholder="e.g. deepseek-v4.1-flash" [value]="editModel()" (input)="editModel.set($any($event.target).value)" />
+              </label>
+            </div>
+            <label class="model-edit-check">
+              <input type="checkbox" [checked]="editApplyToNodes()" (change)="editApplyToNodes.set($any($event.target).checked)" />
+              <span>{{ 'Also switch internal helper nodes (hopper / object detector / background compression)' | t }}</span>
+            </label>
+            <div class="model-edit-actions">
+              <button type="button" class="btn-file-action" (click)="cancelEditModelConfig()">
+                <span class="material-symbols-outlined">close</span>
+                <span>{{ 'Cancel' | t }}</span>
+              </button>
+              <button type="button" class="btn-file-action btn-save-model" [disabled]="isSavingModelConfig() || !editModel().trim()"
+                (click)="saveModelConfig()">
+                <span class="material-symbols-outlined" [class.spinning]="isSavingModelConfig()">save</span>
+                <span>{{ isSavingModelConfig() ? ('Saving...' | t) : ('Save Model' | t) }}</span>
+              </button>
+            </div>
+            @if (modelConfigError()) {
+            <div class="feedback-msg error">
+              <span class="material-symbols-outlined">error</span>
+              <span>{{ modelConfigError() }}</span>
+            </div>
+            }
+          </div>
+          }
+
+          @if (modelConfigMessage()) {
+          <div class="feedback-msg success">
+            <span class="material-symbols-outlined">check_circle</span>
+            <span>{{ modelConfigMessage() }}</span>
+          </div>
+          }
           
           <!-- Full JSONC Viewer -->
           @if (showFullConfigFile()) {

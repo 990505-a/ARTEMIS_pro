@@ -139,6 +139,16 @@ export const ZH_TRANSLATIONS: Record<string, string> = {
   'Use Local ADB': '使用本地 ADB',
   'Switching...': '切换中...',
   'Installed Virtual Devices (AVD)': '已安装的虚拟设备（AVD）',
+  // ---------------------------------------------------------------- model editor
+  'Edit Model': '编辑模型',
+  'Edit the active model in artemis.jsonc': '在 artemis.jsonc 中编辑当前生效的模型',
+  'Provider': '服务商',
+  'Model ID': '模型 ID',
+  'Also switch internal helper nodes (hopper / object detector / background compression)':
+    '同时切换内部辅助节点（应用定位 / 目标检测 / 后台压缩）',
+  'Cancel': '取消',
+  'Save Model': '保存模型',
+  'Saving...': '保存中...',
   'Available': '个可用',
   'Launch': '启动',
   'Launch ': '启动 ',

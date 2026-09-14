@@ -493,6 +493,57 @@ async def get_model_config_and_env():
     }
 
 
+class UpdateModelConfigRequest(BaseModel):
+    """Payload to update the active model selection in artemis.jsonc."""
+
+    provider: str = Field(description="Provider id (google, openai, anthropic, openrouter, ...)")
+    model: str = Field(description="Model id as the provider knows it")
+    apply_to_nodes: bool = Field(
+        default=True,
+        description=(
+            "Also switch node-level overrides (hopper, object_detector) and the "
+            "background compression models so the whole stack runs on the choice"
+        ),
+    )
+
+
+@router.put("/model-config")
+async def update_model_config(request: Request, payload: UpdateModelConfigRequest):
+    """Edit the active default model configuration in artemis.jsonc (local only)."""
+    _require_local_admin_request(request)
+
+    from artemis.config.paths import get_config_path
+
+    from ..services.model_config_service import ModelConfigUpdateError, update_model_config
+
+    try:
+        config_path = get_config_path("artemis.jsonc")
+    except Exception as exc:  # noqa: BLE001 - surface as a 4xx-style failure
+        raise HTTPException(status_code=500, detail=f"Could not resolve config path: {exc}")
+
+    try:
+        result = update_model_config(
+            config_path,
+            payload.provider.strip(),
+            payload.model.strip(),
+            apply_to_nodes=payload.apply_to_nodes,
+        )
+    except ModelConfigUpdateError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    return {
+        "status": "success",
+        "message": (
+            f"Active model set to {result['provider']}/{result['model']}. "
+            "New tasks pick it up immediately; the inspector above refreshes "
+            "within ~10 seconds."
+        ),
+        "provider": result["provider"],
+        "model": result["model"],
+        "nodes_updated": result["nodes_updated"],
+    }
+
+
 @router.get("/server-status")
 async def get_server_runtime_status():
     """Retrieve runtime status, PID, port, and uptime of the Artemis server."""

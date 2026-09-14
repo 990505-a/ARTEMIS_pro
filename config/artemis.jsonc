@@ -6,15 +6,10 @@
   // ------------------------------------------------------------------------------
   // 1. Global Default Model (Applied to all sub-agents unless overridden below)
   // ------------------------------------------------------------------------------
-  "default": {
+    "default": {
     "provider": "openai",
     "model": "deepseek-v4.1-flash",
-    "thinking_level": "medium",
-    "fallback": {
-      "provider": "openai",
-      "model": "deepseek-v4.1-flash",
-      "thinking_level": "medium"
-    }
+    "fallback": { "provider": "openai", "model": "deepseek-v4.1-flash" }
   },
 
   // ------------------------------------------------------------------------------
@@ -76,13 +71,10 @@
     // e.g., "gemini-robotics-er-2-preview". Non-ER models will fail spatial coordinate detection.
     // ⚠️ Switched to a non-Gemini endpoint: coordinate accuracy will degrade
     // (original design requires Gemini ER models for sub-pixel localization).
-    "object_detector": {
+        "object_detector": {
       "provider": "openai",
       "model": "deepseek-v4.1-flash",
-      "fallback": {
-        "provider": "openai",
-        "model": "deepseek-v4.1-flash"
-      }
+      "fallback": { "provider": "openai", "model": "deepseek-v4.1-flash" }
     },
 
     // 🔍 Explorer: Deep element grounding and multi-candidate visual search
@@ -97,13 +89,10 @@
     "summarizer": {},
 
     // 🔽 Hopper: Fast lightweight package name locator
-    "hopper": {
+        "hopper": {
       "provider": "openai",
       "model": "deepseek-v4.1-flash",
-      "fallback": {
-        "provider": "openai",
-        "model": "deepseek-v4.1-flash"
-      }
+      "fallback": { "provider": "openai", "model": "deepseek-v4.1-flash" }
     },
 
     // 📝 Outputter: Synthesizes execution trace into final output report
