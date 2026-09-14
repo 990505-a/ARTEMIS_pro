@@ -23,6 +23,7 @@ from collections.abc import Awaitable, Callable, Coroutine
 from contextvars import ContextVar, Token
 import functools
 import logging
+import os
 from pathlib import Path
 import re
 import sys
@@ -597,12 +598,40 @@ class RobustChatModelWrapper:
 
     def with_structured_output(self, *args, **kwargs):
         if hasattr(self.base_model, "with_structured_output"):
+            kwargs = dict(kwargs)
+            method = self._compat_structured_output_method()
+            if method and "method" not in kwargs:
+                kwargs["method"] = method
             return RobustChatModelWrapper(
                 self.base_model.with_structured_output(*args, **kwargs),
                 self.ctx,
                 endpoint=self.endpoint,
             )
         raise AttributeError(f"{type(self.base_model)} does not support with_structured_output")
+
+    _STRUCTURED_METHODS = {"function_calling", "json_mode", "json_schema"}
+
+    def _compat_structured_output_method(self) -> str | None:
+        """Structured-output method override for OpenAI-compatible gateways.
+
+        LangChain-openai defaults to json_schema; many gateway frontends
+        (opencode.ai, local runtimes) answer 400 "response_format type is
+        unavailable" for it. Route custom base URLs through function_calling,
+        which is the most widely supported encoding. OPENAI_STRUCTURED_OUTPUT_METHOD
+        forces a specific method ("function_calling" | "json_mode" |
+        "json_schema") or "off" to keep LangChain's default.
+        """
+        env = (os.environ.get("OPENAI_STRUCTURED_OUTPUT_METHOD") or "").strip().lower()
+        if env == "off":
+            return None
+        if env in self._STRUCTURED_METHODS:
+            return env
+        base_url = os.environ.get("OPENAI_BASE_URL") or (
+            str(settings.OPENAI_BASE_URL) if getattr(settings, "OPENAI_BASE_URL", None) else ""
+        )
+        if base_url and "api.openai.com" not in base_url:
+            return "function_calling"
+        return None
 
     def __or__(self, other):
         return RobustChatModelWrapper(

@@ -21,7 +21,9 @@ Anthropic, OpenRouter, and local Ollama/vLLM endpoints.
 
 from enum import StrEnum
 import hashlib
+import json
 import os
+import uuid
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -32,6 +34,29 @@ from artemis.llm.google.provider import supports_thinking_level
 from artemis.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# Stable per-process session id for gateways that route by session header.
+_OPENCODE_SESSION_ID = f"artemis-{uuid.uuid4()}"
+
+
+def _openai_default_headers(base_url: str | None) -> dict[str, str] | None:
+    """Extra routing headers some OpenAI-compatible gateways require.
+
+    OPENAI_DEFAULT_HEADERS (a JSON object env var) wins for any endpoint;
+    opencode.ai hosts additionally get x-opencode-session automatically —
+    without it the gateway answers 400 MissingSessionID.
+    """
+    headers_env = os.environ.get("OPENAI_DEFAULT_HEADERS")
+    if headers_env:
+        try:
+            parsed = json.loads(headers_env)
+            if isinstance(parsed, dict) and parsed:
+                return {str(k): str(v) for k, v in parsed.items()}
+        except ValueError:
+            logger.warning("OPENAI_DEFAULT_HEADERS is not valid JSON; ignoring it")
+    if base_url and "opencode.ai" in base_url:
+        return {"x-opencode-session": _OPENCODE_SESSION_ID}
+    return None
 
 
 class ModelProvider(StrEnum):
@@ -291,6 +316,11 @@ class ModelFactory:
             base_url = endpoint.api_base or (
                 str(settings.OPENAI_BASE_URL) if settings.OPENAI_BASE_URL else None
             )
+            # Gateways in front of OpenAI-compatible APIs may require custom
+            # routing headers (e.g. opencode.ai rejects requests without
+            # x-opencode-session with 400 MissingSessionID). OPENAI_DEFAULT_HEADERS
+            # (JSON object) wins; opencode.ai hosts get the header automatically.
+            default_headers = _openai_default_headers(base_url)
             kwargs = {
                 "model": endpoint.model_name,
                 "temperature": endpoint.temperature,
@@ -301,6 +331,8 @@ class ModelFactory:
             }
             if endpoint.reasoning_effort:
                 kwargs["reasoning_effort"] = endpoint.reasoning_effort
+            if default_headers:
+                kwargs["default_headers"] = default_headers
             return ChatOpenAI(**{k: v for k, v in kwargs.items() if v is not None})
 
         elif provider == ModelProvider.ANTHROPIC:
@@ -383,6 +415,9 @@ class ModelFactory:
             }
             if endpoint.reasoning_effort:
                 kwargs["reasoning_effort"] = endpoint.reasoning_effort
+            default_headers = _openai_default_headers(base_url)
+            if default_headers:
+                kwargs["default_headers"] = default_headers
             return ChatOpenAI(**{k: v for k, v in kwargs.items() if v is not None})
 
         else:
