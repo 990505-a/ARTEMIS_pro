@@ -112,4 +112,18 @@
       transform: scale(0.97);
     }
   }
+
+  // Language toggle: inherits .nav-tab-btn sizing, separated by a hairline.
+  .lang-toggle-btn {
+    background: none;
+    border: none;
+    border-left: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 0 15px 15px 0;
+    margin-left: 1px;
+    font: inherit;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.7);
+    }
+  }
 }

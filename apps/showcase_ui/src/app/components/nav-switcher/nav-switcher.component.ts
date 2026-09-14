@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 
 import { RouterLink, RouterLinkActive } from '@angular/router';
+
+import { TranslatePipe, TranslateService } from '../../core/i18n';
 
 @Component({
   selector: 'app-nav-switcher',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive],
+  imports: [RouterLink, RouterLinkActive, TranslatePipe],
   template: `
     <nav class="floating-nav-switcher" aria-label="Main Navigation">
       <a 
@@ -29,23 +31,34 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
         routerLinkActive="active" 
         [routerLinkActiveOptions]="{exact: true}"
         class="nav-tab-btn"
-        title="Return to Home Launcher to start a new task"
+        [title]="'Return to Home Launcher to start a new task' | t"
       >
         <span class="material-symbols-outlined tab-icon">add_task</span>
-        <span class="tab-label">New / Home</span>
+        <span class="tab-label">{{ 'New / Home' | t }}</span>
       </a>
       <a 
         routerLink="/workspace" 
         routerLinkActive="active" 
         class="nav-tab-btn"
-        title="Open Workspace"
+        [title]="'Open Workspace' | t"
       >
         <span class="material-symbols-outlined tab-icon">space_dashboard</span>
-        <span class="tab-label">Workspace</span>
+        <span class="tab-label">{{ 'Workspace' | t }}</span>
       </a>
+      <button
+        type="button"
+        class="nav-tab-btn lang-toggle-btn"
+        (click)="translate.toggleLang()"
+        [title]="translate.lang() === 'zh' ? 'Switch to English' : '切换为中文'"
+      >
+        <span class="material-symbols-outlined tab-icon">translate</span>
+        <span class="tab-label">{{ translate.lang() === 'zh' ? 'EN' : '中文' }}</span>
+      </button>
     </nav>
   `,
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./nav-switcher.component.scss']
 })
-export class NavSwitcherComponent {}
+export class NavSwitcherComponent {
+  protected readonly translate = inject(TranslateService);
+}

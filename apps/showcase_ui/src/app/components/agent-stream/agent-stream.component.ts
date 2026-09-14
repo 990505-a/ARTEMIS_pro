@@ -215,6 +215,7 @@ import {
 } from '../../utils/tool-formatter.util';
 
 import { drawActionCoordinatesOnOverlay } from '../../utils/image-overlay.util';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 import {
   consolidateLogsToBlocks,
@@ -233,7 +234,8 @@ export type { MarkdownSegment, MarkdownLine, NoteMilestone, ParsedNote, StreamRe
 @Component({
   selector: 'app-agent-stream',
   standalone: true,
-  imports: [CommonModule, FormsModule, OverlayModule],
+  imports: [
+    TranslatePipe,CommonModule, FormsModule, OverlayModule],
   templateUrl: './agent-stream.component.html',
   styleUrl: './agent-stream.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
