@@ -44,6 +44,17 @@ from artemis.utils.visualization import draw_action_overlay_on_image
 
 logger = get_logger(__name__)
 
+
+def _bg_llm(model_name: str, temperature: float = 0.0):
+    """Background compression LLM: honor an OpenAI-compatible endpoint if set."""
+    import os
+
+    from artemis.services.llm import get_openai_llm
+
+    if os.environ.get("OPENAI_BASE_URL"):
+        return get_openai_llm(model_name=model_name, temperature=temperature)
+    return get_google_llm(model_name=model_name, temperature=temperature)
+
 # Degenerate-output guard (§5 echo validation): a summary that echoes the
 # input's section markers, or falls outside sane length bounds, fails the
 # attempt so the bounded service retry regenerates it.
@@ -166,11 +177,11 @@ class VisualStepSummarizer(StepMemoryService):
         self._model_name = target_model
         try:
             if model_name:
-                self._llm = get_google_llm(model_name=target_model, temperature=0.0)
+                self._llm = _bg_llm(target_model)
             else:
                 self._llm = get_llm(ctx, name="summarizer", is_utils=True)
         except Exception:
-            self._llm = get_google_llm(model_name=target_model, temperature=0.0)
+            self._llm = _bg_llm(target_model)
         try:
             configured = getattr(self._llm, "model", None) or getattr(self._llm, "model_name", None)
             if isinstance(configured, str) and configured:
