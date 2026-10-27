@@ -25,7 +25,7 @@ limitations under the License.
         (click)="agentService.activeTab.set('tasks')"
         >
         <span class="material-symbols-outlined tab-icon">list_alt</span>
-        <span class="tab-text">Task Queue</span>
+        <span class="tab-text">{{ 'Task Queue' | t }}</span>
       </button>
       <button
         class="tab-selector-btn"
@@ -33,7 +33,7 @@ limitations under the License.
         (click)="agentService.activeTab.set('notes')"
         >
         <span class="material-symbols-outlined tab-icon">description</span>
-        <span class="tab-text">Notes & Plans</span>
+        <span class="tab-text">{{ 'Notes & Plans' | t }}</span>
       </button>
     </div>
 
@@ -42,8 +42,8 @@ limitations under the License.
         <button
           class="btn-clear-history"
           (click)="clearHistory()"
-          title="Clear all tasks and history"
-          aria-label="Clear all tasks and history"
+          [title]="'Clear all tasks and history' | t"
+          [aria-label]="'Clear all tasks and history' | t"
           [disabled]="isSubmitting()"
           >
           <span class="material-symbols-outlined">delete</span>
@@ -58,11 +58,11 @@ limitations under the License.
     @if (agentService.activeTab() === 'tasks') {
       <!-- Active Queue Section -->
       <div class="queue-section-header">
-        <span class="material-symbols-outlined section-icon">bolt</span> Active Queue ({{ activeQueue().length }})
+        <span class="material-symbols-outlined section-icon">bolt</span> {{ 'Active Queue (' | t }}{{ activeQueue().length }})
       </div>
       @if (activeQueue().length === 0) {
         <div class="empty-section-placeholder">
-          No active or queued tasks.
+          {{ 'No active or queued tasks.' | t }}
         </div>
       }
       @for (session of activeQueue(); track trackSession($index, session)) {
@@ -81,7 +81,7 @@ limitations under the License.
             </span>
             <div class="task-card-header-actions">
               @if (getDeviceSerial(session)) {
-                <span class="task-device" [title]="'Device: ' + getDeviceSerial(session)">
+                <span class="task-device" [title]="('Device: ' | t) + getDeviceSerial(session)">
                   <span class="material-symbols-outlined device-icon">phone_android</span>
                   <span class="device-name">{{ getDeviceSerial(session) }}</span>
                 </span>
@@ -95,8 +95,8 @@ limitations under the License.
                   type="button"
                   class="btn-stop-card"
                   (click)="stopTask(session.session_id, $event)"
-                  title="Stop this task"
-                  aria-label="Stop this task"
+                  [title]="'Stop this task' | t"
+                  [aria-label]="'Stop this task' | t"
                   >
                   <span class="material-symbols-outlined">stop_circle</span>
                 </button>
@@ -106,8 +106,8 @@ limitations under the License.
                   type="button"
                   class="btn-delete-card"
                   (click)="deleteTask(session.session_id, $event)"
-                  title="Delete this task"
-                  aria-label="Delete this task"
+                  [title]="'Delete this task' | t"
+                  [aria-label]="'Delete this task' | t"
                   [disabled]="isSubmitting()"
                   >
                   <span class="material-symbols-outlined">delete</span>
@@ -115,11 +115,11 @@ limitations under the License.
               }
             </div>
           </div>
-          <div class="task-goal" title="{{ session.initial_goal }}">
-            {{ session.initial_goal || 'Unnamed Task' }}
+          <div class="task-goal" [title]=" session.initial_goal ">
+            {{ session.initial_goal || ('Unnamed Task' | t) }}
           </div>
           <div class="task-card-footer">
-            <span class="task-id" [title]="session.session_id">ID: {{ session.session_id }}</span>
+            <span class="task-id" [title]="session.session_id">{{ 'ID:' | t }} {{ session.session_id }}</span>
             <span class="task-date">{{ session.start_time * 1000 | date:'MM/dd/yy' }}</span>
           </div>
         </div>
@@ -127,12 +127,12 @@ limitations under the License.
       <!-- Collapsible History Section -->
       <details class="history-section" open>
         <summary class="history-summary">
-          <span class="material-symbols-outlined section-icon">history</span> Past Runs & History ({{ historyTasks().length }})
+          <span class="material-symbols-outlined section-icon">history</span> {{ 'Past Runs & History (' | t }}{{ historyTasks().length }})
         </summary>
         <div class="history-list-wrapper">
           @if (historyTasks().length === 0) {
             <div class="empty-section-placeholder">
-              No past tasks.
+              {{ 'No past tasks.' | t }}
             </div>
           }
           @for (session of historyTasks(); track trackSession($index, session)) {
@@ -151,7 +151,7 @@ limitations under the License.
                 </span>
                 <div class="task-card-header-actions">
                   @if (getDeviceSerial(session)) {
-                    <span class="task-device" [title]="'Device: ' + getDeviceSerial(session)">
+                    <span class="task-device" [title]="('Device: ' | t) + getDeviceSerial(session)">
                       <span class="material-symbols-outlined device-icon">phone_android</span>
                       <span class="device-name">{{ getDeviceSerial(session) }}</span>
                     </span>
@@ -165,8 +165,8 @@ limitations under the License.
                       type="button"
                       class="btn-delete-card"
                       (click)="deleteTask(session.session_id, $event)"
-                      title="Delete this task"
-                      aria-label="Delete this task"
+                      [title]="'Delete this task' | t"
+                      [aria-label]="'Delete this task' | t"
                       [disabled]="isSubmitting()"
                       >
                       <span class="material-symbols-outlined">delete</span>
@@ -174,11 +174,11 @@ limitations under the License.
                   }
                 </div>
               </div>
-              <div class="task-goal" title="{{ session.initial_goal }}">
-                {{ session.initial_goal || 'Unnamed Task' }}
+              <div class="task-goal" [title]=" session.initial_goal ">
+                {{ session.initial_goal || ('Unnamed Task' | t) }}
               </div>
               <div class="task-card-footer">
-                <span class="task-id" [title]="session.session_id">ID: {{ session.session_id }}</span>
+                <span class="task-id" [title]="session.session_id">{{ 'ID:' | t }} {{ session.session_id }}</span>
                 <span class="task-date">{{ session.start_time * 1000 | date:'MM/dd/yy' }}</span>
               </div>
             </div>
@@ -212,8 +212,8 @@ limitations under the License.
             <div class="empty-notes-icon">
               <span class="material-symbols-outlined">description</span>
             </div>
-            <h4 class="empty-notes-title">No Notes & Plans</h4>
-            <p class="empty-notes-subtitle">No notes or structured plans were recorded for this session.</p>
+            <h4 class="empty-notes-title">{{ 'No Notes & Plans' | t }}</h4>
+            <p class="empty-notes-subtitle">{{ 'No notes or structured plans were recorded for this session.' | t }}</p>
           </div>
         }
         <!-- Notes Content Viewer (Clean card blocks matching the second screenshot style) -->
@@ -300,7 +300,7 @@ limitations under the License.
                             [style.margin-left.px]="(check.indent > 2 ? (check.indent - 2) * 12 : 0)"
                             >
                             <div class="card-header">
-                              <span class="card-tag" [class.assert]="check.checkKind === 'assert'">{{ check.checkKind || 'verify' }}{{ check.atEnd ? ' @end' : '' }}</span>
+                              <span class="card-tag" [class.assert]="check.checkKind === 'assert'">{{ check.checkKind || 'verify' }}{{ check.atEnd ? (' @end' | t) : '' }}</span>
                             </div>
                             <div class="card-body">
                               @for (seg of check.segments; track seg) {
@@ -325,7 +325,7 @@ limitations under the License.
                   @if (line.type === 'verify' || line.type === 'finding') {
                     <div class="verification-card standalone" [ngClass]="line.type" [style.margin-left.px]="line.indent * 12">
                       <div class="card-header">
-                        <span class="card-tag" [class.assert]="line.checkKind === 'assert'">{{ line.checkKind || 'verify' }}{{ line.atEnd ? ' @end' : '' }}</span>
+                        <span class="card-tag" [class.assert]="line.checkKind === 'assert'">{{ line.checkKind || 'verify' }}{{ line.atEnd ? (' @end' | t) : '' }}</span>
                       </div>
                       <div class="card-body">
                         @for (seg of line.segments; track seg) {

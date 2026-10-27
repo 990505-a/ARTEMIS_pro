@@ -18,11 +18,13 @@ import { Component, HostListener, ChangeDetectionStrategy } from '@angular/core'
 
 import { LegacyAgentStreamComponent } from '../../components/legacy-agent-stream/legacy-agent-stream.component';
 import { ChatInterfaceComponent } from '../../components/chat-interface/chat-interface.component';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-legacy-workspace',
   standalone: true,
-  imports: [LegacyAgentStreamComponent, ChatInterfaceComponent],
+  imports: [
+    TranslatePipe,LegacyAgentStreamComponent, ChatInterfaceComponent],
   templateUrl: './legacy-workspace.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './legacy-workspace.component.scss'

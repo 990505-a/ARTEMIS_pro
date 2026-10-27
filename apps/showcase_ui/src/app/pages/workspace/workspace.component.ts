@@ -21,11 +21,13 @@ import { AgentStreamComponent } from '../../components/agent-stream/agent-stream
 import { ChatInterfaceComponent } from '../../components/chat-interface/chat-interface.component';
 import { FloatingVideoPlayerComponent } from '../../components/floating-video-player/floating-video-player.component';
 import { AgentService } from '../../services/agent.service';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-workspace',
   standalone: true,
   imports: [
+    TranslatePipe,
     FormsModule,
     AgentStreamComponent,
     ChatInterfaceComponent,
