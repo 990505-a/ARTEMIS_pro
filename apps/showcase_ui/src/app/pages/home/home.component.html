@@ -563,6 +563,10 @@
               </span>
               <span>{{ 'Copy Path' | t }}</span>
               </button>
+              <button type="button" class="btn-file-action btn-edit-model" (click)="showModelEditor.set(!showModelEditor())">
+                <span class="material-symbols-outlined">tune</span>
+                <span>{{ showModelEditor() ? ('Hide Editor' | t) : ('Edit Model' | t) }}</span>
+              </button>
               <button type="button" class="btn-file-action btn-toggle-code" (click)="toggleFullConfigFile()">
                 <span class="material-symbols-outlined">
                   {{ showFullConfigFile() ? 'unfold_less' : 'code' }}
@@ -595,6 +599,69 @@
             }
           
           </div>
+          
+          <!-- Inline Model Editor (writes artemis.jsonc via the API) -->
+          @if (showModelEditor()) {
+          <div class="model-editor">
+            <div class="model-editor-grid">
+              <label class="model-field">
+                <span class="model-field-label">{{ 'Provider' | t }}</span>
+                <select [ngModel]="modelEditProvider()"
+                  (ngModelChange)="modelEditProvider.set($event); markModelConfigEdited()">
+                  @for (providerId of modelProviders; track providerId) {
+                  <option [value]="providerId">{{ providerId }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="model-field">
+                <span class="model-field-label">{{ 'Model' | t }}</span>
+                <input [ngModel]="modelEditModel()"
+                  (ngModelChange)="modelEditModel.set($event); markModelConfigEdited()"
+                  [placeholder]="'e.g. deepseek-chat' | t" spellcheck="false" autocomplete="off" />
+              </label>
+
+              <label class="model-field">
+                <span class="model-field-label">{{ 'Fallback Model' | t }}</span>
+                <input [ngModel]="modelEditFallbackModel()"
+                  (ngModelChange)="modelEditFallbackModel.set($event); markModelConfigEdited()"
+                  [placeholder]="'Same as primary' | t" spellcheck="false" autocomplete="off" />
+              </label>
+
+              <label class="model-field">
+                <span class="model-field-label">{{ 'API Base URL' | t }}</span>
+                <input [ngModel]="modelEditBaseUrl()"
+                  (ngModelChange)="modelEditBaseUrl.set($event); markModelConfigEdited()"
+                  placeholder="https://api.openai.com/v1" spellcheck="false" autocomplete="off" />
+              </label>
+
+              <label class="model-field">
+                <span class="model-field-label">{{ 'API Key' | t }} <em>{{ '(optional)' | t }}</em></span>
+                <input type="password" [ngModel]="modelEditApiKey()"
+                  (ngModelChange)="modelEditApiKey.set($event); markModelConfigEdited()"
+                  [placeholder]="'Leave empty to keep current' | t" spellcheck="false" autocomplete="off" />
+              </label>
+            </div>
+
+            <div class="model-editor-actions">
+              @if (modelConfigSaveMessage()) {
+              <span class="model-save-msg">{{ modelConfigSaveMessage() }}</span>
+              }
+              @if (modelConfigSaveError()) {
+              <span class="model-save-err">{{ modelConfigSaveError() }}</span>
+              }
+              <button type="button" class="btn-unified-save" [disabled]="isSavingModelConfig()" (click)="saveModelConfig()">
+                @if (isSavingModelConfig()) {
+                <span class="material-symbols-outlined spin">sync</span>
+                <span>{{ 'Saving...' | t }}</span>
+                } @else {
+                <span class="material-symbols-outlined">save</span>
+                <span>{{ 'Save & Apply' | t }}</span>
+                }
+              </button>
+            </div>
+          </div>
+          }
           
           <!-- Full JSONC Viewer -->
           @if (showFullConfigFile()) {

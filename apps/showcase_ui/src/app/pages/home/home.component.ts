@@ -18,7 +18,7 @@ import { Component, signal, computed, effect, inject, OnInit, OnDestroy, ChangeD
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AgentService } from '../../services/agent.service';
-import { SystemService } from '../../services/system.service';
+import { SystemService, UpdateModelConfigRequest } from '../../services/system.service';
 import {
   AdbServerConnectionResult,
   AdbServerDevice,
@@ -32,6 +32,7 @@ import {
 } from '../../core/data/smart-tasks.data';
 import { TaskRecommendationService } from '../../core/services/task-recommendation.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { TranslateService } from '../../core/i18n/translate.service';
 import {
   DEFAULT_EXPLORER_MODE,
   DEFAULT_VERIFICATION_LEVEL,
@@ -115,6 +116,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   public systemService = inject(SystemService);
   public taskRecService = inject(TaskRecommendationService);
   private router = inject(Router);
+  private translate = inject(TranslateService);
 
   // High-level navigation mode: 'diagnostics' (System Setup Guide) vs 'launcher' (Task Execution)
   public activeTab = signal<'diagnostics' | 'launcher'>('launcher');
@@ -130,6 +132,30 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   // Model & Environment configuration from backend
   public modelConfigEnv = computed(() => this.systemService.modelConfigEnv());
+
+  // Active model editor state (writes to artemis.jsonc through the API)
+  public showModelEditor = signal<boolean>(false);
+  public isModelConfigEdited = signal<boolean>(false);
+  public isSavingModelConfig = signal<boolean>(false);
+  public modelConfigSaveMessage = signal<string | null>(null);
+  public modelConfigSaveError = signal<string | null>(null);
+  public modelEditProvider = signal<string>('openai');
+  public modelEditModel = signal<string>('');
+  public modelEditFallbackModel = signal<string>('');
+  public modelEditBaseUrl = signal<string>('');
+  public modelEditApiKey = signal<string>('');
+  /** Providers understood by the backend model router. */
+  public readonly modelProviders = [
+    'openai',
+    'google',
+    'anthropic',
+    'openrouter',
+    'xai',
+    'ollama',
+    'vllm',
+    'custom',
+  ] as const;
+
 
   // Google Gemini API Key State
   public geminiKeyInput = signal<string>('');
@@ -535,6 +561,20 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.ocrKeyInput.set(ocrKey);
       }
     });
+
+    // Seed the model editor from the active config unless the user is mid-edit.
+    effect(() => {
+      const config = this.modelConfigEnv();
+      const active = config?.default_model;
+      if (!active || this.isModelConfigEdited()) {
+        return;
+      }
+      this.modelEditProvider.set(active.provider || 'openai');
+      this.modelEditModel.set(active.model || '');
+      this.modelEditFallbackModel.set(active.fallback?.model || active.model || '');
+      const baseUrl = (config?.env_vars || []).find(v => v.name === 'OPENAI_BASE_URL');
+      this.modelEditBaseUrl.set(baseUrl?.preview || '');
+    });
   }
 
   ngOnInit(): void {
@@ -621,6 +661,55 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.isOcrKeyEdited.set(true);
     this.ocrSaveError.set(null);
     this.ocrSaveMessage.set(null);
+  }
+
+  public markModelConfigEdited(): void {
+    this.isModelConfigEdited.set(true);
+    this.modelConfigSaveError.set(null);
+    this.modelConfigSaveMessage.set(null);
+  }
+
+  public saveModelConfig(): void {
+    const model = this.modelEditModel().trim();
+    if (!model) {
+      this.modelConfigSaveError.set(this.translate.t('Please enter a model name.'));
+      return;
+    }
+
+    const originalBaseUrl = (this.modelConfigEnv()?.env_vars || [])
+      .find(v => v.name === 'OPENAI_BASE_URL')?.preview || '';
+    const baseUrl = this.modelEditBaseUrl().trim();
+    const apiKey = this.modelEditApiKey().trim();
+
+    const payload: UpdateModelConfigRequest = {
+      provider: this.modelEditProvider(),
+      model,
+      fallback_model: this.modelEditFallbackModel().trim() || model,
+    };
+    if (baseUrl !== originalBaseUrl) {
+      payload.base_url = baseUrl;
+    }
+    if (apiKey) {
+      payload.api_key = apiKey;
+    }
+
+    this.isSavingModelConfig.set(true);
+    this.modelConfigSaveError.set(null);
+    this.modelConfigSaveMessage.set(null);
+
+    this.systemService.updateModelConfig(payload).subscribe({
+      next: () => {
+        this.isSavingModelConfig.set(false);
+        this.isModelConfigEdited.set(false);
+        this.modelEditApiKey.set('');
+        this.modelConfigSaveMessage.set(this.translate.t('Model configuration saved. New tasks pick it up immediately.'));
+        setTimeout(() => this.modelConfigSaveMessage.set(null), 5000);
+      },
+      error: (err) => {
+        this.isSavingModelConfig.set(false);
+        this.modelConfigSaveError.set(err?.error?.detail || err?.message || this.translate.t('Failed to update model configuration.'));
+      }
+    });
   }
 
   public saveGeminiKey(): void {

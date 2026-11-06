@@ -543,6 +543,24 @@ export class SystemService {
   }
 
   /**
+   * Persist a new default provider/model (and optional endpoint/key) to artemis.jsonc / .env.
+   * New tasks pick the change up on their next run; no server restart is required.
+   */
+  public updateModelConfig(payload: UpdateModelConfigRequest): Observable<ModelConfigUpdateResponse> {
+    return this.http.post<ModelConfigUpdateResponse>('/api/system/model-config', payload).pipe(
+      tap({
+        next: () => {
+          this.fetchModelConfigEnv().subscribe();
+          this.fetchReadiness().subscribe();
+        },
+        error: (err) => {
+          console.error('Failed to update model configuration:', err);
+        }
+      })
+    );
+  }
+
+  /**
    * Test and verify an API key against live provider endpoint without persisting
    */
   public testApiKey(provider: string, apiKey: string, baseUrl?: string): Observable<{ valid: boolean; provider: string; message: string }> {
@@ -607,4 +625,24 @@ export interface ModelConfigEnvResponse {
     description: string;
   }>;
 }
+
+export interface UpdateModelConfigRequest {
+  provider: string;
+  model: string;
+  fallback_provider?: string;
+  fallback_model?: string;
+  thinking_level?: string;
+  api_key?: string;
+  base_url?: string;
+}
+
+export interface ModelConfigUpdateResponse {
+  status: string;
+  message: string;
+  config_path: string;
+  default_model: ModelConfigEnvResponse['default_model'];
+  requires_restart: boolean;
+  warnings: string[];
+}
+
 

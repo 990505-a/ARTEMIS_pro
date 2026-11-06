@@ -15,6 +15,7 @@
 """System Readiness & Diagnostics Router for Artemis Admin Console."""
 
 import ipaddress
+import json
 import os
 import secrets
 from urllib.parse import urlsplit
@@ -284,6 +285,34 @@ class ValidateCredentialsRequest(BaseModel):
     base_url: str | None = Field(default=None, description="Optional custom base URL")
 
 
+class UpdateModelConfigRequest(BaseModel):
+    """Payload to change the active default LLM provider/model from the console."""
+
+    provider: str = Field(
+        default="openai",
+        description="Provider identifier (openai, google, anthropic, openrouter, xai, ollama, vllm, custom)",
+    )
+    model: str = Field(description="Model identifier understood by the provider")
+    fallback_provider: str | None = Field(
+        default=None, description="Fallback provider; defaults to the primary provider"
+    )
+    fallback_model: str | None = Field(
+        default=None, description="Fallback model; defaults to the primary model"
+    )
+    thinking_level: str | None = Field(
+        default=None, description="Optional thinking level (minimal, low, medium, high)"
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="Optional API key to store in .env (omit to leave the current key untouched)",
+    )
+    base_url: str | None = Field(
+        default=None,
+        description="Optional OpenAI-compatible base URL to store in .env",
+    )
+
+
+
 @router.get("/credentials")
 async def get_credentials():
     """Report which providers have an API key configured.
@@ -490,6 +519,242 @@ async def get_model_config_and_env():
         "env_path": str(env_path),
         "env_filename": ".env",
         "env_vars": env_vars,
+    }
+
+
+_JSONC_WHITESPACE = " \t\r\n"
+
+
+def _skip_jsonc_trivia(text: str, index: int) -> int:
+    """Skip whitespace and // or /* */ comments, returning the next code index."""
+    while index < len(text):
+        if text[index] in _JSONC_WHITESPACE:
+            index += 1
+        elif text.startswith("//", index):
+            newline = text.find("\n", index)
+            index = len(text) if newline < 0 else newline + 1
+        elif text.startswith("/*", index):
+            end = text.find("*/", index + 2)
+            index = len(text) if end < 0 else end + 2
+        else:
+            break
+    return index
+
+
+def _scan_jsonc_string(text: str, index: int) -> int:
+    """Return the index just past the string literal starting at ``index``."""
+    index += 1
+    while index < len(text):
+        if text[index] == "\\":
+            index += 2
+            continue
+        if text[index] == '"':
+            return index + 1
+        index += 1
+    raise ValueError("Unterminated string literal in JSONC document")
+
+
+def _match_jsonc_object(text: str, index: int) -> int:
+    """Return the index just past the object literal starting at ``index``."""
+    depth = 0
+    while index < len(text):
+        char = text[index]
+        if char == '"':
+            index = _scan_jsonc_string(text, index)
+            continue
+        if text.startswith("//", index) or text.startswith("/*", index):
+            index = _skip_jsonc_trivia(text, index)
+            continue
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return index + 1
+        index += 1
+    raise ValueError("Unbalanced braces in JSONC document")
+
+
+def _find_top_level_object_span(text: str, key: str) -> tuple[int, int]:
+    """Return the span of a top-level key's object value, ignoring comments."""
+    index = 0
+    depth = 0
+    while index < len(text):
+        char = text[index]
+        if char == '"':
+            end = _scan_jsonc_string(text, index)
+            if depth == 1 and text[index + 1 : end - 1] == key:
+                cursor = _skip_jsonc_trivia(text, end)
+                if cursor < len(text) and text[cursor] == ":":
+                    cursor = _skip_jsonc_trivia(text, cursor + 1)
+                    if cursor < len(text) and text[cursor] == "{":
+                        return cursor, _match_jsonc_object(text, cursor)
+            index = end
+            continue
+        if text.startswith("//", index) or text.startswith("/*", index):
+            index = _skip_jsonc_trivia(text, index)
+            continue
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+        index += 1
+    raise ValueError(f"Top-level object key {key!r} not found")
+
+
+def _render_json_object(value: dict, base_indent: str) -> str:
+    """Render a dict as pretty JSON, indented to sit inside the JSONC document."""
+    rendered = json.dumps(value, indent=2, ensure_ascii=False)
+    lines = rendered.splitlines()
+    return lines[0] + "\n" + "\n".join(base_indent + line for line in lines[1:])
+
+
+def _persist_env_var(name: str, value: str) -> None:
+    """Write or replace a single KEY=value line in the active .env file."""
+    from artemis.config.paths import get_env_file
+
+    env_file = get_env_file()
+    lines = env_file.read_text(encoding="utf-8").splitlines() if env_file.exists() else []
+    prefixes = (f"{name}=", f"#{name}=", f"# {name}=")
+    updated = False
+    new_lines: list[str] = []
+    for line in lines:
+        if line.startswith(prefixes):
+            new_lines.append(f"{name}={value}")
+            updated = True
+        else:
+            new_lines.append(line)
+    if not updated:
+        new_lines.append(f"{name}={value}")
+    env_file.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+
+
+@router.post("/model-config")
+async def update_model_config(request: Request, payload: UpdateModelConfigRequest):
+    """Change the active default LLM provider/model from the web console.
+
+    Only the top-level ``"default"`` object in artemis.jsonc is rewritten, so
+    comments, presets and per-node overrides are preserved. The runtime
+    re-reads the config for every task, so the change applies to the next run
+    without restarting the server.
+    """
+    _require_local_admin_request(request)
+
+    import io as _io
+
+    from pydantic import SecretStr
+
+    from artemis.llm.router import ModelProvider
+
+    def _canonical(value: str) -> str:
+        return ModelProvider.from_string(value).value
+
+    try:
+        provider = _canonical(payload.provider)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    model_id = payload.model.strip()
+    if not model_id:
+        raise HTTPException(status_code=400, detail="Model identifier must not be empty.")
+
+    try:
+        fallback_provider = _canonical(payload.fallback_provider or provider)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    fallback_model_id = (payload.fallback_model or model_id).strip()
+
+    from artemis.config.paths import get_config_path
+    from third_party.mobile_use.utils.file import load_jsonc
+
+    config_path = get_config_path("artemis.jsonc")
+    original_text = config_path.read_text(encoding="utf-8")
+    try:
+        parsed = load_jsonc(_io.StringIO(original_text))
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Could not parse {config_path}: {exc}"
+        ) from exc
+
+    current_default = parsed.get("default") if isinstance(parsed.get("default"), dict) else {}
+    new_default = dict(current_default)
+    new_default["provider"] = provider
+    new_default["model"] = model_id
+    if payload.thinking_level:
+        new_default["thinking_level"] = payload.thinking_level
+
+    current_fallback = new_default.get("fallback")
+    new_fallback = dict(current_fallback) if isinstance(current_fallback, dict) else {}
+    new_fallback["provider"] = fallback_provider
+    new_fallback["model"] = fallback_model_id
+    if payload.thinking_level:
+        new_fallback["thinking_level"] = payload.thinking_level
+    new_default["fallback"] = new_fallback
+
+    try:
+        span_start, span_end = _find_top_level_object_span(original_text, "default")
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    line_start = original_text.rfind("\n", 0, span_start) + 1
+    prefix = original_text[line_start:span_start]
+    base_indent = prefix[: len(prefix) - len(prefix.lstrip())]
+    new_text = (
+        original_text[:span_start]
+        + _render_json_object(new_default, base_indent)
+        + original_text[span_end:]
+    )
+
+    try:
+        candidate = load_jsonc(_io.StringIO(new_text))
+        from artemis.config.llm import LLMConfig, _expand_default_into_nodes
+
+        LLMConfig.model_validate(_expand_default_into_nodes(candidate))
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400, detail=f"Rejected invalid model configuration: {exc}"
+        ) from exc
+
+    try:
+        config_path.write_text(new_text, encoding="utf-8")
+    except OSError as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Could not write {config_path}: {exc}"
+        ) from exc
+
+    from artemis.config import settings
+
+    if payload.api_key is not None:
+        api_key = payload.api_key.strip()
+        if provider in ("google", "openai", "anthropic", "openrouter", "xai"):
+            settings.set_api_key(provider, api_key, persist_to_env=True)
+        else:
+            # OpenAI-compatible local/proxy providers read OPENAI_API_KEY.
+            _persist_env_var("OPENAI_API_KEY", api_key)
+            settings.OPENAI_API_KEY = SecretStr(api_key) if api_key else None
+            os.environ["OPENAI_API_KEY"] = api_key
+
+    if payload.base_url is not None:
+        base_url = payload.base_url.strip()
+        _persist_env_var("OPENAI_BASE_URL", base_url)
+        os.environ["OPENAI_BASE_URL"] = base_url
+        settings.OPENAI_BASE_URL = base_url or None
+
+    try:
+        from apps.admin_console.services.model_service import ModelService
+    except ImportError:
+        from admin_console.services.model_service import ModelService
+    ModelService._llm_info_cache = None
+
+    readiness_engine.invalidate_cache()
+
+    return {
+        "status": "success",
+        "message": f"Active model updated to {provider}/{model_id}.",
+        "config_path": str(config_path),
+        "default_model": new_default,
+        "requires_restart": False,
+        "warnings": [],
     }
 
 

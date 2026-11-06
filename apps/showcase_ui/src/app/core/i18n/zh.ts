@@ -106,6 +106,21 @@ export const ZH_TRANSLATIONS: Record<string, string> = {
   'Loaded from': '加载自',
   'Configured': '已配置',
   'Not Set': '未设置',
+  'Edit Model': '编辑模型',
+  'Hide Editor': '收起编辑器',
+  'Provider': '提供商',
+  'Model': '模型',
+  'API Base URL': 'API 接口地址',
+  'API Key': 'API 密钥',
+  '(optional)': '（可选）',
+  'e.g. deepseek-chat': '例如 deepseek-chat',
+  'Same as primary': '与主模型相同',
+  'Leave empty to keep current': '留空则保持当前值',
+  'Saving...': '保存中...',
+  'Please enter a model name.': '请输入模型名称。',
+  'Model configuration saved. New tasks pick it up immediately.':
+    '模型配置已保存，新任务将立即使用。',
+  'Failed to update model configuration.': '更新模型配置失败。',
 
   // ---------------------------------------------------------------- step 3 device
   'Android Device & Emulator Connection': 'Android 真机与模拟器连接',
