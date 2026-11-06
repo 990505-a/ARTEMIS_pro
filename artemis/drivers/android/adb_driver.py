@@ -16,6 +16,7 @@
 
 import asyncio
 import base64
+import time
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Literal
@@ -88,6 +89,10 @@ class AndroidAdbDriver(BaseDeviceDriver):
         self._device: AdbDevice | None = None
         self._recording_process: asyncio.subprocess.Process | None = None
         self._recording_output_path: Path | None = None
+        #: Consecutive dumps that exposed no text-bearing nodes (canvas/Unity apps).
+        self._degenerate_streak = 0
+        #: While set, skip hierarchy dumps entirely and serve screenshots only.
+        self._skip_hierarchy_until = 0.0
 
     @property
     def device_id(self) -> str:
@@ -130,7 +135,12 @@ class AndroidAdbDriver(BaseDeviceDriver):
         ui_elements: list[dict[str, Any]] = []
 
         # Check if ui_adb_client has direct screen data support
-        if self._ui_adb_client and hasattr(self._ui_adb_client, "get_screen_data"):
+        skip_hierarchy = time.monotonic() < self._skip_hierarchy_until
+        if (
+            self._ui_adb_client
+            and hasattr(self._ui_adb_client, "get_screen_data")
+            and not skip_hierarchy
+        ):
             try:
                 # The client API is synchronous (adb screenshot + UI dump) and can
                 # take tens of seconds when the accessibility helper times out.
@@ -159,6 +169,7 @@ class AndroidAdbDriver(BaseDeviceDriver):
                         ui_elements = [raw_elements]
                     elif isinstance(raw_elements, list):
                         ui_elements = raw_elements
+                self._note_hierarchy_quality(ui_elements)
             except Exception as e:
                 logger.debug(f"Direct ui_adb_client.get_screen_data error: {e}")
 
@@ -230,6 +241,36 @@ class AndroidAdbDriver(BaseDeviceDriver):
             height=h,
             platform="android",
         )
+
+    def _note_hierarchy_quality(self, elements: list[dict[str, Any]]) -> None:
+        """Skip hierarchy dumps for a while when the screen exposes no usable nodes.
+
+        Canvas-rendered apps (Unity, some Flutter/Compose boards) surface only a
+        couple of text-less nodes, yet producing that dump can block for tens of
+        seconds while the accessibility helper and UIAutomation negotiate. After
+        two consecutive signal-less dumps, serve screenshots only for 60s and
+        re-probe afterwards.
+        """
+        nodes = [el for el in (elements or []) if isinstance(el, dict)]
+        has_text = any(
+            str(el.get("text") or el.get("content-desc") or "").strip() for el in nodes
+        )
+        if has_text or len(nodes) > 3:
+            self._degenerate_streak = 0
+            self._skip_hierarchy_until = 0.0
+            return
+
+        self._degenerate_streak += 1
+        if self._degenerate_streak >= 2 and time.monotonic() >= self._skip_hierarchy_until:
+            # Escalate the skip window: each re-probe that still finds nothing
+            # doubles it (60s → 120s → 240s, capped at 5 min) so a long game
+            # session does not pay a blocking dump every minute.
+            ttl = min(60.0 * (2 ** (self._degenerate_streak - 2)), 300.0)
+            self._skip_hierarchy_until = time.monotonic() + ttl
+            logger.info(
+                "UI hierarchy exposes no text on this screen; serving screenshots only"
+                f" for {ttl:.0f}s to avoid blocking hierarchy dumps."
+            )
 
     async def tap(
         self,

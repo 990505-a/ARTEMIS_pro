@@ -199,3 +199,36 @@ async def test_find_element_prefers_fresh_bounds_over_stale_center():
 
     assert error is None
     assert center == [140, 1820]
+
+
+@pytest.mark.asyncio
+async def test_driver_skips_hierarchy_dumps_when_screen_has_no_text():
+    """Canvas screens (no text nodes) must not pay a blocking hierarchy dump per step."""
+    mock_adb_client = MagicMock()
+    mock_adb_client.device.return_value = MagicMock()
+    mock_ui_client = MagicMock()
+    sparse = [
+        {"text": "", "class": "android.view.SurfaceView", "bounds": "[0,0][1080,2400]"}
+    ]
+    mock_ui_client.get_screen_data.return_value = SimpleNamespace(
+        base64=_ONE_PIXEL_PNG,
+        hierarchy_xml="<hierarchy />",
+        elements=sparse,
+        width=1080,
+        height=2400,
+    )
+    driver = AndroidAdbDriver(
+        device_id="dev", adb_client=mock_adb_client, ui_adb_client=mock_ui_client
+    )
+
+    # One signal-less dump is not enough: a transient blank screen must not
+    # disable the hierarchy for the rest of the run.
+    await driver.get_screen_data(skip_settling=True)
+    assert driver._skip_hierarchy_until == 0.0
+
+    await driver.get_screen_data(skip_settling=True)
+    assert driver._skip_hierarchy_until > 0.0
+
+    calls = mock_ui_client.get_screen_data.call_count
+    await driver.get_screen_data(skip_settling=True)
+    assert mock_ui_client.get_screen_data.call_count == calls
