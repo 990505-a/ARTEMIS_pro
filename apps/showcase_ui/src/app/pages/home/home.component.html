@@ -1963,12 +1963,12 @@
                   [style.--pct]="slider.fraction"
                 >
                   <div class="slider-head">
-                    <span class="slider-name">{{ slider.name }}</span>
-                    <span class="slider-value">{{ slider.level.label }}</span>
+                    <span class="slider-name">{{ slider.name | t }}</span>
+                    <span class="slider-value">{{ slider.level.label | t }}</span>
                   </div>
                   <div class="slider-ends" aria-hidden="true">
-                    <span>{{ slider.ends[0] }}</span>
-                    <span>{{ slider.ends[1] }}</span>
+                    <span>{{ slider.ends[0] | t }}</span>
+                    <span>{{ slider.ends[1] | t }}</span>
                   </div>
 
                   <div
@@ -2016,23 +2016,23 @@
                       (input)="setTuningIndex(slider.kind, $any($event.target).value)"
                       (focus)="showTuningTip(slider.kind)"
                       (blur)="hideTuningTip(slider.kind)"
-                      [attr.aria-label]="slider.name"
-                      [attr.aria-valuetext]="slider.level.label + ': ' + slider.level.tagline"
+                      [attr.aria-label]="slider.name | t"
+                      [attr.aria-valuetext]="(slider.level.label | t) + ': ' + (slider.level.tagline | t)"
                     />
 
                     @if (activeTuningTip() === slider.kind) {
                       <div class="tuning-tip-arrow" aria-hidden="true"></div>
                       <div class="tuning-tip" role="tooltip">
                         <div class="tip-heading">
-                          <span class="tip-title">{{ slider.level.label }}</span>
-                          <span class="tip-latency">{{ slider.level.latency }}</span>
+                          <span class="tip-title">{{ slider.level.label | t }}</span>
+                          <span class="tip-latency">{{ slider.level.latency | t }}</span>
                         </div>
-                        <p class="tip-tagline">{{ slider.level.tagline }}</p>
+                        <p class="tip-tagline">{{ slider.level.tagline | t }}</p>
                         <div class="tip-section">
                           <span class="tip-section-title">{{ 'What happens' | t }}</span>
                           <ul>
                             @for (line of slider.level.runs; track $index) {
-                              <li>{{ line }}</li>
+                              <li>{{ line | t }}</li>
                             }
                           </ul>
                         </div>
@@ -2041,14 +2041,14 @@
                             <span class="tip-section-title">{{ 'Not included' | t }}</span>
                             <ul>
                               @for (line of slider.level.skips; track $index) {
-                                <li>{{ line }}</li>
+                                <li>{{ line | t }}</li>
                               }
                             </ul>
                           </div>
                         }
                         <div class="tip-best">
                           <span class="tip-section-title">{{ 'Use it for' | t }}</span>
-                          <span>{{ slider.level.bestFor }}</span>
+                          <span>{{ slider.level.bestFor | t }}</span>
                         </div>
                       </div>
                     }

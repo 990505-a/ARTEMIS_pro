@@ -335,6 +335,81 @@ export const ZH_TRANSLATIONS: Record<string, string> = {
   'Result check': '结果校验',
   'Screen reading': '屏幕读取',
   'Not included': '不包含',
+  'Faster': '更快',
+  'Sharper': '更准',
+  'Off': '关闭',
+  'Strict': '严格',
+  'At the end': '结束时',
+  'Every step': '每步',
+  'Quick glance': '一眼',
+  'Second look': '再看一眼',
+  'Close-up': '特写',
+  'no extra time': '不额外耗时',
+  'adds about 20–60 s at the end': '结束时大约多花 20–60 秒',
+  'a short check after each step, done in the background': '每步后一次短检查，在后台进行',
+  'slowest: more checks and more retries': '最慢：检查更多、重试更多',
+  '1 look per search': '每次查找看 1 眼',
+  'up to 3 looks per search': '每次查找最多看 3 眼',
+  'up to 8 looks per search (slowest)': '每次查找最多看 8 眼（最慢）',
+  'No checking. The run ends as soon as the task looks done.': '不做任何校验，任务看起来完成就直接结束。',
+  'One check of the finished result against your goal. This is the default.':
+    '结束后对照目标检查一次最终结果。这是默认设置。',
+  'Each step is checked as soon as it is done, plus the final check.':
+    '每一步做完立刻检查，最后再做一次总检查。',
+  'Every step is checked, with more retries. The first failed test stops the run.':
+    '每步都检查，且重试更多；第一个未通过的检查会终止任务。',
+  'Finds buttons and text on the screen in a single look.': '看一眼就找出屏幕上的按钮和文字。',
+  'Takes up to 3 looks, thinking in between, before answering.':
+    '最多看 3 眼，中间会思考，再给出答案。',
+  'Zooms into parts of the screen and takes up to 8 looks.': '会放大屏幕局部，最多看 8 眼。',
+  'Each step is treated as finished the moment it is carried out.': '每一步执行完就视为完成。',
+  'You get the full action trace, but no pass / fail verdict.':
+    '你能拿到完整操作记录，但没有通过/失败的结论。',
+  'When the task finishes, the final screen, the step history and the device state are compared with what you asked for.':
+    '任务结束时，把最终画面、步骤历史和设备状态与你提的要求逐项对照。',
+  'If the result does not match, the task goes back and tries to fix it, up to 3 times.':
+    '如果结果不符，会回退并尝试修正，最多 3 次。',
+  'Every step is checked right after it completes, using the screenshots from that moment.':
+    '每一步完成后立刻用当时的截图做检查。',
+  'If a step went wrong, it gets fixed before moving on (up to 2 tries per step).':
+    '某步出错会先修正再继续（每步最多 2 次）。',
+  'A failed test condition is written down and the task keeps going.':
+    '未通过的检查项会被记录下来，任务继续执行。',
+  'The final check still runs at the end.': '结束时仍会做最终检查。',
+  'Each check takes longer and gets more attempts: 4 fixes per step and 5 at the end.':
+    '每次检查更久、尝试更多：每步最多修正 4 次，结束时 5 次。',
+  'The first failed test condition stops the run immediately, with the evidence attached.':
+    '第一个未通过的检查项会立即终止任务，并附上证据。',
+  'Something on screen is asked for by name, icon or colour and its position comes back straight away.':
+    '按名称、图标或颜色查找屏幕上的目标，立刻返回它的位置。',
+  'Several things can be looked up at once.': '可以一次查找多个目标。',
+  'The screen layout is read first, then the picture is searched.':
+    '先读取界面布局，再在画面中查找。',
+  'If the first try misses, a different approach is tried within the 3 looks.':
+    '第一次没找到时，会在 3 眼之内换一种方式再找。',
+  'Parts of the screen can be cropped and magnified to read tiny text and crowded layouts piece by piece.':
+    '可以裁剪放大屏幕局部，逐块读取小字和拥挤的界面。',
+  'Later looks reuse the earlier ones, so they cost less time than they sound.':
+    '后续观察会复用前面的结果，实际耗时比听起来少。',
+  'Nothing is double-checked and nothing is retried.': '不做二次核对，也不会重试。',
+  'Nothing is checked while the task is still running.': '任务进行过程中不做任何检查。',
+  'No zooming in and no second try.': '不放大，也不会再试第二次。',
+  'Still no zooming into small areas, to keep searches short.':
+    '仍然不放大局部，保证查找速度。',
+  'Quick tries and demos, when you only want to watch what happens.':
+    '快速尝试和演示，只想看它会怎么做。',
+  'Everyday tasks: an honest pass / fail without slowing the run down.':
+    '日常任务：给出可靠的通过/失败结论，又不会拖慢执行。',
+  'Long tasks where one early mistake would spoil everything after it.':
+    '长流程任务：早期一步出错会影响后续所有步骤。',
+  'Release checks and regression runs, where a wrong pass is never acceptable.':
+    '发版验收和回归测试，绝不能接受错误地判为通过。',
+  'Ordinary apps with clearly labelled buttons, icons and text.':
+    '按钮、图标和文字标注清晰的普通 App。',
+  'Things described by where they are ("the switch next to Wi-Fi") or with unclear labels.':
+    '按位置描述的目标（如“Wi-Fi 旁边的开关”）或标注不清的元素。',
+  'Crowded screens, tiny targets, charts and drawings, and checks where exact placement matters.':
+    '密集界面、小目标、图表与插图，以及对精确位置有要求的检查。',
   'Expected Output': '期望输出',
   'Specify expected output or schema (e.g. \'Extract SMS verification code as JSON\' or \'Summary of discounts and total price\')...':
     '指定期望输出或结构（例如：“以 JSON 提取短信验证码”或“优惠与总价摘要”）...',
