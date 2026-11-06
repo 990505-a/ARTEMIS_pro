@@ -132,7 +132,12 @@ class AndroidAdbDriver(BaseDeviceDriver):
         # Check if ui_adb_client has direct screen data support
         if self._ui_adb_client and hasattr(self._ui_adb_client, "get_screen_data"):
             try:
-                raw_ui_data = self._ui_adb_client.get_screen_data()
+                # The client API is synchronous (adb screenshot + UI dump) and can
+                # take tens of seconds when the accessibility helper times out.
+                # Running it on the event loop froze every other coroutine — the
+                # step-summary retry, SSE heartbeats and the operator turn all
+                # stalled behind a 30s adb timeout.
+                raw_ui_data = await asyncio.to_thread(self._ui_adb_client.get_screen_data)
                 if (
                     hasattr(raw_ui_data, "base64")
                     and isinstance(raw_ui_data.base64, str)
@@ -178,7 +183,7 @@ class AndroidAdbDriver(BaseDeviceDriver):
         if self._ui_adb_client and not ui_elements:
             try:
                 if hasattr(self._ui_adb_client, "get_hierarchy"):
-                    res = self._ui_adb_client.get_hierarchy()
+                    res = await asyncio.to_thread(self._ui_adb_client.get_hierarchy)
                     hierarchy = await res if asyncio.iscoroutine(res) else res
                     if isinstance(hierarchy, str):
                         ui_hierarchy_xml = hierarchy
@@ -186,7 +191,7 @@ class AndroidAdbDriver(BaseDeviceDriver):
                     else:
                         ui_elements = hierarchy
                 elif hasattr(self._ui_adb_client, "get_ui_elements"):
-                    res = self._ui_adb_client.get_ui_elements()
+                    res = await asyncio.to_thread(self._ui_adb_client.get_ui_elements)
                     ui_elements = await res if asyncio.iscoroutine(res) else res
             except Exception as e:
                 logger.debug(f"UI hierarchy extraction failed: {e}")
@@ -330,9 +335,13 @@ class AndroidAdbDriver(BaseDeviceDriver):
                 try:
                     set_clip_ok = False
                     if hasattr(self._ui_adb_client, "set_clipboard"):
-                        set_clip_ok = self._ui_adb_client.set_clipboard(norm_text)
+                        set_clip_ok = await asyncio.to_thread(
+                            self._ui_adb_client.set_clipboard, norm_text
+                        )
                     elif hasattr(self._ui_adb_client, "_device") and self._ui_adb_client._device:
-                        self._ui_adb_client._device.set_clipboard(norm_text)
+                        await asyncio.to_thread(
+                            self._ui_adb_client._device.set_clipboard, norm_text
+                        )
                         set_clip_ok = True
 
                     if set_clip_ok:

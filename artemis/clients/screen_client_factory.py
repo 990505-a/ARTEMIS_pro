@@ -153,6 +153,10 @@ class FallbackScreenClient:
         self._uiautomator_factory = uiautomator_factory or (lambda: UIAutomatorClient(device_id))
         self._uiautomator: UIAutomatorClient | None = None
         self._retry_after = retry_after
+        #: Cap for the exponential helper-retry backoff. A helper that keeps
+        #: dying must not cost a 30s+ probe every retry window.
+        self._max_retry_after = max(retry_after, 300.0)
+        self._helper_failures = 0
         self._clock = clock
         self._state_probe = state_probe
         self._helper_down_until: float | None = None
@@ -221,12 +225,20 @@ class FallbackScreenClient:
         # Never fall back to UIAutomator2 for a phone that is simply not there.
         self._ensure_device_online()
         self._last_failure = f"{reason.__class__.__name__}: {reason}"
+        # Exponential backoff: a helper that dies repeatedly would otherwise be
+        # re-probed every ``retry_after`` seconds and each probe can block for
+        # the full helper timeout (30s+), dominating the step latency.
+        self._helper_failures += 1
+        backoff = min(
+            self._retry_after * (2 ** (self._helper_failures - 1)),
+            self._max_retry_after,
+        )
         if self._helper_down_until is None:
             logger.warning(
                 f"Accessibility helper unavailable on {self._device_id} ({reason}); "
-                f"serving from UIAutomator2 and retrying the helper in {self._retry_after:g}s."
+                f"serving from UIAutomator2 and retrying the helper in {backoff:g}s."
             )
-        self._helper_down_until = self._clock() + self._retry_after
+        self._helper_down_until = self._clock() + backoff
 
     def _release_uiautomation(self) -> None:
         """Stop our UIAutomator2 server before giving the helper another chance.
@@ -249,6 +261,7 @@ class FallbackScreenClient:
             else:
                 self._set_active("helper", "helper recovered" if self._last_failure else None)
                 self._last_failure = None
+                self._helper_failures = 0
                 return result
         result = getattr(self.uiautomator, name)(*args, **kwargs)
         self._set_active("uiautomator", self._last_failure)
@@ -269,6 +282,8 @@ class FallbackScreenClient:
             except (RuntimeError, OSError, ValueError, subprocess.SubprocessError) as exc:
                 self._degrade(exc)
             else:
+                self._helper_failures = 0
+                self._last_failure = None
                 self._set_active("helper")
                 return
         self.uiautomator.connect()

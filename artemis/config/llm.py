@@ -116,6 +116,11 @@ class LLMConfig(LLMConfigBase):
 
     def get_agent(self, item: AgentNode) -> LLMWithFallback:
         """Retrieve model configuration for a specific agent node with sensible defaults."""
+        # Legacy alias: the pixel safety net falls back to the name "validator"
+        # when its own node is unavailable. Resolve it to the real node instead
+        # of raising AttributeError (which silently disabled the check).
+        if item == "validator":
+            item = "validator_pixel_safety_net"
         val = getattr(self, item)
         if val is None:
             if item == "history_analyzer":
@@ -162,6 +167,10 @@ def _expand_default_into_nodes(config_dict: dict) -> dict:
         "history_analyzer_expert",
         "diagnoser_expert",
         "explorer",
+        # Lightweight judges: inherit the configured default provider so they do
+        # not silently depend on a Google key when the run uses another provider.
+        "validator_pixel_safety_net",
+        "planner_validation",
     ]
 
     all_utils_nodes = [

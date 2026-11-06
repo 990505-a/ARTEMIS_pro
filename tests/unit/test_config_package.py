@@ -156,6 +156,14 @@ def test_llm_config_parsing_and_merging():
     assert llm_cfg.get_agent("planner") is not None
     assert llm_cfg.get_utils("hopper") is not None
 
+    # The pixel safety net resolves through the legacy "validator" alias, and
+    # the lightweight judges inherit the configured provider instead of a
+    # hardcoded Google default (which a non-Google run cannot authenticate).
+    validator_node = llm_cfg.get_agent("validator")
+    assert validator_node is not None
+    assert validator_node.provider == llm_cfg.planner.provider
+    assert llm_cfg.get_agent("validator_pixel_safety_net") is not None
+
     # Deep merge overrides
     overrides = {
         "planner": {

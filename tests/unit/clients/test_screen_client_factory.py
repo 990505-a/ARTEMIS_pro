@@ -219,6 +219,31 @@ def test_helper_retry_releases_uiautomation_first(composite):
     u2.stop_server.assert_called_once()
 
 
+def test_repeated_helper_failures_back_off_exponentially(composite):
+    """A helper that keeps dying must not be re-probed every 30s (30s+ per probe)."""
+    client, helper, u2, _, clock = composite
+    helper.get_hierarchy.side_effect = HelperUnavailable("tunnel gone")
+    u2.get_hierarchy.return_value = "<from-u2/>"
+
+    assert client.get_hierarchy() == "<from-u2/>"
+    assert client._helper_down_until == pytest.approx(30.0)
+
+    clock["now"] = 30.5
+    assert client.get_hierarchy() == "<from-u2/>"
+    assert client._helper_down_until == pytest.approx(90.5)  # 30.5 + 60
+
+    clock["now"] = 90.6
+    assert client.get_hierarchy() == "<from-u2/>"
+    assert client._helper_down_until == pytest.approx(210.6)  # 90.6 + 120
+
+    # Recovery resets the backoff so the next failure starts at 30s again.
+    helper.get_hierarchy.side_effect = None
+    helper.get_hierarchy.return_value = "<from-helper/>"
+    clock["now"] = 400.0
+    assert client.get_hierarchy() == "<from-helper/>"
+    assert client._helper_failures == 0
+
+
 def test_disconnect_stops_the_uiautomator_server_it_started(composite):
     client, helper, u2, _, _ = composite
     helper.connect.side_effect = HelperUnavailable("nope")
