@@ -561,6 +561,13 @@ export class SystemService {
   }
 
   /**
+   * Probe a provider/model pairing (with optional draft key/base URL) without saving.
+   */
+  public testModelConfig(payload: TestModelConfigRequest): Observable<ModelConfigTestResponse> {
+    return this.http.post<ModelConfigTestResponse>('/api/system/model-config/test', payload);
+  }
+
+  /**
    * Test and verify an API key against live provider endpoint without persisting
    */
   public testApiKey(provider: string, apiKey: string, baseUrl?: string): Observable<{ valid: boolean; provider: string; message: string }> {
@@ -643,6 +650,23 @@ export interface ModelConfigUpdateResponse {
   default_model: ModelConfigEnvResponse['default_model'];
   requires_restart: boolean;
   warnings: string[];
+}
+
+export interface TestModelConfigRequest {
+  provider: string;
+  model: string;
+  api_key?: string;
+  base_url?: string;
+  timeout_seconds?: number;
+}
+
+export interface ModelConfigTestResponse {
+  valid: boolean;
+  provider: string;
+  model: string;
+  latency_ms: number;
+  sample: string;
+  message: string;
 }
 
 

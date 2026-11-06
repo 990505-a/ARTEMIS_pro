@@ -117,6 +117,9 @@ export const ZH_TRANSLATIONS: Record<string, string> = {
   'Same as primary': '与主模型相同',
   'Leave empty to keep current': '留空则保持当前值',
   'Saving...': '保存中...',
+  'Connection OK': '连接正常',
+  'Connection failed.': '连接失败。',
+  'Send a minimal prompt to check the endpoint is reachable': '发送一条最小请求，验证接口是否可达',
   'Please enter a model name.': '请输入模型名称。',
   'Model configuration saved. New tasks pick it up immediately.':
     '模型配置已保存，新任务将立即使用。',

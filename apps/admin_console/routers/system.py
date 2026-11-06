@@ -14,10 +14,12 @@
 
 """System Readiness & Diagnostics Router for Artemis Admin Console."""
 
+import asyncio
 import ipaddress
 import json
 import os
 import secrets
+import time
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Request
@@ -283,6 +285,25 @@ class ValidateCredentialsRequest(BaseModel):
     )
     api_key: str = Field(description="The secret API key string to test")
     base_url: str | None = Field(default=None, description="Optional custom base URL")
+
+
+class TestModelConfigRequest(BaseModel):
+    """Payload to probe a provider/model pairing without persisting anything."""
+
+    provider: str = Field(
+        default="openai",
+        description="Provider identifier (openai, google, anthropic, openrouter, xai, ollama, vllm, custom)",
+    )
+    model: str = Field(description="Model identifier to send a minimal prompt to")
+    api_key: str | None = Field(
+        default=None, description="Optional key to test with; omitted uses the configured key"
+    )
+    base_url: str | None = Field(
+        default=None, description="Optional OpenAI-compatible base URL override"
+    )
+    timeout_seconds: float = Field(
+        default=20.0, ge=1.0, le=120.0, description="Probe timeout in seconds"
+    )
 
 
 class UpdateModelConfigRequest(BaseModel):
@@ -755,6 +776,74 @@ async def update_model_config(request: Request, payload: UpdateModelConfigReques
         "default_model": new_default,
         "requires_restart": False,
         "warnings": [],
+    }
+
+
+@router.post("/model-config/test")
+async def test_model_config(request: Request, payload: TestModelConfigRequest):
+    """Probe a provider/model pairing with a one-word prompt.
+
+    Uses the draft values from the console (not the saved config), so the user
+    can verify a custom endpoint/key before persisting it. Credentials fall
+    back to whatever is configured in .env when the request omits them.
+    """
+    _require_local_admin_request(request)
+
+    from langchain_core.messages import HumanMessage
+
+    from artemis.llm.router import ModelEndpoint, ModelFactory, ModelProvider
+
+    try:
+        provider = ModelProvider.from_string(payload.provider)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    model_id = payload.model.strip()
+    if not model_id:
+        raise HTTPException(status_code=400, detail="Model identifier must not be empty.")
+
+    endpoint = ModelEndpoint(
+        provider=provider,
+        model_name=model_id,
+        api_key=(payload.api_key or "").strip() or None,
+        api_base=(payload.base_url or "").strip() or None,
+        temperature=0.0,
+        timeout_seconds=payload.timeout_seconds,
+    )
+
+    started = time.perf_counter()
+    try:
+        model = ModelFactory.create_model(endpoint)
+        reply = await asyncio.wait_for(
+            model.ainvoke([HumanMessage(content="Reply with the single word: OK")]),
+            timeout=payload.timeout_seconds,
+        )
+    except asyncio.TimeoutError as exc:
+        raise HTTPException(
+            status_code=504,
+            detail=f"No response from {provider.value}/{model_id} within {payload.timeout_seconds:.0f}s.",
+        ) from exc
+    except Exception as exc:  # noqa: BLE001 - provider SDKs raise arbitrary types
+        raise HTTPException(
+            status_code=400,
+            detail=f"{type(exc).__name__}: {exc}",
+        ) from exc
+
+    latency_ms = int((time.perf_counter() - started) * 1000)
+    content = getattr(reply, "content", reply)
+    if isinstance(content, list):
+        content = " ".join(
+            part.get("text", "") if isinstance(part, dict) else str(part) for part in content
+        )
+    sample = str(content).strip()[:200]
+
+    return {
+        "valid": True,
+        "provider": provider.value,
+        "model": model_id,
+        "latency_ms": latency_ms,
+        "sample": sample,
+        "message": f"{provider.value}/{model_id} responded in {latency_ms} ms.",
     }
 
 

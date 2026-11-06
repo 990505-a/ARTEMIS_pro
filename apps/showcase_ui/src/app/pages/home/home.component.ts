@@ -18,7 +18,7 @@ import { Component, signal, computed, effect, inject, OnInit, OnDestroy, ChangeD
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AgentService } from '../../services/agent.service';
-import { SystemService, UpdateModelConfigRequest } from '../../services/system.service';
+import { SystemService, TestModelConfigRequest, UpdateModelConfigRequest } from '../../services/system.service';
 import {
   AdbServerConnectionResult,
   AdbServerDevice,
@@ -137,8 +137,11 @@ export class HomeComponent implements OnInit, OnDestroy {
   public showModelEditor = signal<boolean>(false);
   public isModelConfigEdited = signal<boolean>(false);
   public isSavingModelConfig = signal<boolean>(false);
+  public isTestingModelConfig = signal<boolean>(false);
   public modelConfigSaveMessage = signal<string | null>(null);
   public modelConfigSaveError = signal<string | null>(null);
+  public modelTestMessage = signal<string | null>(null);
+  public modelTestError = signal<string | null>(null);
   public modelEditProvider = signal<string>('openai');
   public modelEditModel = signal<string>('');
   public modelEditFallbackModel = signal<string>('');
@@ -708,6 +711,44 @@ export class HomeComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.isSavingModelConfig.set(false);
         this.modelConfigSaveError.set(err?.error?.detail || err?.message || this.translate.t('Failed to update model configuration.'));
+      }
+    });
+  }
+
+  public testModelConfig(): void {
+    const model = this.modelEditModel().trim();
+    if (!model) {
+      this.modelTestError.set(this.translate.t('Please enter a model name.'));
+      return;
+    }
+
+    const baseUrl = this.modelEditBaseUrl().trim();
+    const apiKey = this.modelEditApiKey().trim();
+    const payload: TestModelConfigRequest = {
+      provider: this.modelEditProvider(),
+      model,
+    };
+    if (baseUrl) {
+      payload.base_url = baseUrl;
+    }
+    if (apiKey) {
+      payload.api_key = apiKey;
+    }
+
+    this.isTestingModelConfig.set(true);
+    this.modelTestMessage.set(null);
+    this.modelTestError.set(null);
+
+    this.systemService.testModelConfig(payload).subscribe({
+      next: (res) => {
+        this.isTestingModelConfig.set(false);
+        const sample = (res.sample || '').replace(/\s+/g, ' ').trim();
+        const detail = sample && !/^ok$/i.test(sample) ? ` · ${sample.slice(0, 60)}` : '';
+        this.modelTestMessage.set(`${this.translate.t('Connection OK')} · ${res.latency_ms} ms${detail}`);
+      },
+      error: (err) => {
+        this.isTestingModelConfig.set(false);
+        this.modelTestError.set(err?.error?.detail || err?.message || this.translate.t('Connection failed.'));
       }
     });
   }

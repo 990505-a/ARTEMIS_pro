@@ -650,6 +650,22 @@
               @if (modelConfigSaveError()) {
               <span class="model-save-err">{{ modelConfigSaveError() }}</span>
               }
+              @if (modelTestMessage()) {
+              <span class="model-save-msg">{{ modelTestMessage() }}</span>
+              }
+              @if (modelTestError()) {
+              <span class="model-save-err">{{ modelTestError() }}</span>
+              }
+              <button type="button" class="btn-unified-test" [disabled]="isTestingModelConfig() || isSavingModelConfig()"
+                [title]="'Send a minimal prompt to check the endpoint is reachable' | t" (click)="testModelConfig()">
+                @if (isTestingModelConfig()) {
+                <span class="material-symbols-outlined spin">sync</span>
+                <span>{{ 'Testing...' | t }}</span>
+                } @else {
+                <span class="material-symbols-outlined">network_check</span>
+                <span>{{ 'Test Connection' | t }}</span>
+                }
+              </button>
               <button type="button" class="btn-unified-save" [disabled]="isSavingModelConfig()" (click)="saveModelConfig()">
                 @if (isSavingModelConfig()) {
                 <span class="material-symbols-outlined spin">sync</span>
