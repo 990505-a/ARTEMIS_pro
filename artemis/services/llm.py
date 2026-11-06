@@ -893,6 +893,25 @@ def get_google_llm(
     return ModelFactory.create_model(ep)
 
 
+def get_openai_llm(
+    model_name: str = "gpt-4o-mini",
+    temperature: float | None = None,
+    timeout: float | None = None,
+) -> BaseChatModel:
+    """Build an OpenAI-compatible chat model.
+
+    The API key and ``base_url`` come from settings/.env (``OPENAI_API_KEY`` and
+    ``OPENAI_BASE_URL``), so local gateways and proxies work without extra config.
+    """
+    ep = ModelEndpoint(
+        provider=ModelProvider.OPENAI,
+        model_name=model_name,
+        temperature=temperature or 0.0,
+        timeout_seconds=timeout or 60.0,
+    )
+    return ModelFactory.create_model(ep)
+
+
 def _resolve_endpoint(
     ctx: ArtemisContext,
     name: str,
